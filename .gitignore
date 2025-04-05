@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Logs
+*.log
+webhook_logs.json
+member_email_cache.json
+
+# Environment variables
+.env
+
+# macOS system files
+.DS_Store
+
+# VSCode config
+.vscode/
+
+# Pytest cache
+.pytest_cache/

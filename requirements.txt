@@ -1,0 +1,6 @@
+Flask==2.2.5
+requests==2.31.0
+Flask-HTTPAuth==4.8.0
+python-dotenv==1.0.1
+gunicorn==21.2.0
+boto3==1.34.71

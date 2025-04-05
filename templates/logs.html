@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Webhook Log</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2em;
+      background-color: #f9f9f9;
+    }
+
+    h2 {
+      color: #333;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+    }
+
+    th, td {
+      padding: 0.75em;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #f0f0f0;
+    }
+
+    details {
+      background: #f7f7f7;
+      margin-top: 0.5em;
+      padding: 0.5em;
+      border-left: 3px solid #ccc;
+    }
+
+    summary {
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 0.25em;
+    }
+
+    pre {
+      margin: 0;
+      font-size: 0.9em;
+      overflow-x: auto;
+    }
+
+    .status-success {
+      color: green;
+      font-weight: bold;
+    }
+
+    .status-fail {
+      color: red;
+      font-weight: bold;
+    }
+
+    .replay-status {
+      font-size: 0.85em;
+    }
+  </style>
+
+  <script>
+    function replayFromScript(index, button) {
+      const statusElem = button.nextElementSibling;
+      button.disabled = true;
+      statusElem.textContent = "⏳ Replaying...";
+
+      const jsonScript = document.getElementById("payload-json-" + index);
+      if (!jsonScript) {
+        statusElem.textContent = "❌ Payload not found";
+        return;
+      }
+
+      try {
+        const payload = JSON.parse(jsonScript.textContent);
+
+        fetch("/replay-log", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Memberful-Webhook-Signature": "REPLAY"
+          },
+          body: JSON.stringify(payload)
+        }).then(res => {
+          if (res.ok) {
+            statusElem.textContent = "✅ Replayed";
+          } else {
+            statusElem.textContent = "❌ Error (" + res.status + ")";
+          }
+        }).catch(err => {
+          statusElem.textContent = "❌ Exception";
+          console.error("Replay error:", err);
+        }).finally(() => {
+          button.disabled = false;
+        });
+      } catch (err) {
+        statusElem.textContent = "❌ JSON Parse Error";
+        console.error("Replay JSON parse error:", err);
+      }
+    }
+  </script>
+</head>
+<body>
+  <h2>Memberful → Mailchimp Sync Log</h2>
+
+  {% if logs %}
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Event</th>
+          <th>Email</th>
+          <th>Status</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.timestamp[:10] | datetimeformat('date') }}</td>
+          <td>{{ log.timestamp[11:19] | datetimeformat('time') }}</td>
+          <td>{{ log.event }}</td>
+          <td>{{ log.email or '' }}</td>
+          <td class="status-{{ 'success' if log.status == 'success' else 'fail' }}">{{ log.status }}</td>
+          <td>
+            {% if log.changes %}
+              <details>
+                <summary>Changes</summary>
+                <pre>{{ log.changes | tojson(indent=2) }}</pre>
+              </details>
+            {% endif %}
+            {% if log.payload %}
+              <details>
+                <summary>Payload</summary>
+                <pre id="payload-{{ loop.index }}">{{ log.payload | tojson(indent=2) }}</pre>
+                <button onclick="replayFromScript({{ loop.index }}, this)">↻ Replay</button>
+                <small class="replay-status" style="margin-left: 0.5em;"></small>
+
+                <!-- hidden payload for JS replay -->
+                <script id="payload-json-{{ loop.index }}" type="application/json">
+{{ log.payload | tojson }}
+                </script>
+              </details>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No logs found.</p>
+  {% endif %}
+</body>
+</html>
