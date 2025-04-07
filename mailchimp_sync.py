@@ -3,6 +3,7 @@
 import hashlib
 import json
 import requests
+from merge_map import MERGE_FIELDS
 from config import MAILCHIMP_API_KEY, MAILCHIMP_LIST_ID, MAILCHIMP_SERVER_PREFIX
 from utils import format_date, convert_bool, convert_autorenew
 from cache_utils import get_cached_email, update_cache
@@ -18,18 +19,18 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
         print(f"✳️ Email changed in Memberful: {original_email} → {current_email}")
 
     merge_fields = {
-        "FNAME": member.get("first_name", ""),
-        "LNAME": member.get("last_name", ""),
-        "MMERGE13": "USER DELETED" if override_guid else member_id,
-        "MMERGE12": format_date(member.get("created_at"))
+        MERGE_FIELDS["first_name"]: member.get("first_name", ""),
+        MERGE_FIELDS["last_name"]: member.get("last_name", ""),
+        MERGE_FIELDS["member_id"]: "USER DELETED" if override_guid else member_id,
+        MERGE_FIELDS["signup_date"]: format_date(member.get("created_at")),
     }
 
     if subscription:
         merge_fields.update({
-            "MMERGE7": subscription.get("plan_name") or subscription.get("subscription_plan", {}).get("name", ""),
-            "MMERGE8": convert_bool(subscription.get("active")),
-            "MMERGE9": convert_autorenew(subscription.get("autorenew")),
-            "MMERGE10": format_date(subscription.get("expires_at"))
+            MERGE_FIELDS["plan_name"]: subscription.get("plan_name") or subscription.get("subscription_plan", {}).get("name", ""),
+            MERGE_FIELDS["plan_active"]: convert_bool(subscription.get("active")),
+            MERGE_FIELDS["auto_renew"]: convert_autorenew(subscription.get("autorenew")),
+            MERGE_FIELDS["expires_at"]: format_date(subscription.get("expires_at")),
         })
 
     payload = {

@@ -198,6 +198,42 @@ Ensure `APP_ENV=production` and DigitalOcean credentials are present in your env
 
 ---
 
+## 🧩 Merge Field Mapping Abstraction
+
+ChimpLink now uses a centralized `merge_map.py` file to define Mailchimp merge field mappings.
+
+Instead of hardcoding merge field names like `FNAME`, `MMERGE13`, etc. throughout your sync logic, we use a dictionary abstraction:
+
+```python
+# merge_map.py
+
+MERGE_FIELDS = {
+    "first_name": "FNAME",
+    "last_name": "LNAME",
+    "member_id": "MMERGE13",
+    "signup_date": "MMERGE12",
+    "plan_name": "MMERGE7",
+    "plan_active": "MMERGE8",
+    "auto_renew": "MMERGE9",
+    "expires_at": "MMERGE10",
+}
+```
+
+This makes the Mailchimp field mapping:
+
+- Easier to update
+- Cleaner to reference in your sync logic
+- Ready for UI-based customization in the future (via the admin panel)
+
+In `mailchimp_sync.py`, we reference fields like this:
+
+```python
+MERGE_FIELDS["first_name"]
+MERGE_FIELDS["plan_name"]
+```
+
+This improves maintainability and future flexibility of the sync process.
+
 ## 🧪 Testing Tips
 
 - Backfill your `member_email_cache.json` if launching with existing users
