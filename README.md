@@ -127,18 +127,41 @@ python test_workflow_verified_step.py
 
 ---
 
-## ✅ 5. Admin Logs Page
+### 🛠️ Admin Panel
 
-Available at:
-```
-/logs
-```
+The ChimpLink Admin Panel provides a lightweight browser interface for monitoring and managing webhook activity between Memberful and Mailchimp.
 
-- Login with credentials from `.env`
-- Replay individual events
-- Confirm status and payload
+#### 📍 Location
 
----
+Accessible at:  
+`http://localhost:5050/admin` (or your deployed domain)
+
+#### 🚀 Features
+
+- **Dashboard Tab**  
+  Visual overview of recent webhook activity:
+  - Total webhooks received
+  - Success vs failure counts
+  - Top 5 event types
+  - Bar chart of event types
+  - Line chart of webhook frequency over time
+
+- **Logs Tab**  
+  Detailed view of every webhook event:
+  - Date, time, event type, target email, and status
+  - View payload and diffs
+  - One-click replay support for any webhook
+
+- **Email Cache Tab**  
+  Browse the local cache of `Memberful ID → email` mappings used for syncing deleted or changed records.
+
+#### 🧪 Developer Notes
+
+- Frontend built with **Tailwind CSS** (via CDN)
+- Charts powered by **Chart.js**
+- Interactive tabs, logs, and charts loaded dynamically via `main.js`
+- Admin panel lives in the `admin-ui/` folder and is served statically via Flask
+
 
 ## ✅ 6. Health Check
 

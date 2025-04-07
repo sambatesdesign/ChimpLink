@@ -15,13 +15,12 @@ def verify_password(username, password):
     if username == LOGS_USER and check_password_hash(LOGS_PASSWORD_HASH, password):
         return username
 
-from flask import Flask, request, render_template, abort
-import os
+from flask import Flask, request, render_template, abort, send_from_directory
 import json
-from storage_utils import load_json
 from datetime import datetime
 import hmac
 import hashlib
+from storage_utils import load_json
 from config import MEMBERFUL_WEBHOOK_SECRET
 from mailchimp_sync import sync_to_mailchimp
 from cache_utils import load_cache, save_cache, get_cached_email
@@ -33,7 +32,6 @@ LOG_FILE = "webhook_logs.json"
 def verify_signature(request):
     signature = request.headers.get("X-Memberful-Webhook-Signature")
 
-    # Allow bypass for internal replays
     if signature == "REPLAY":
         return True
 
@@ -51,7 +49,6 @@ def verify_signature(request):
 
     return True
 
-# ✅ Register datetime formatting filter
 @app.template_filter('datetimeformat')
 def datetimeformat(value, mode='full'):
     try:
@@ -76,7 +73,6 @@ def memberful_webhook():
     print("Raw webhook payload:")
     print(data)
 
-    # ✅ Special-case "order.failed" before the generic missing-email check
     if event_type == "order.failed":
         member = data.get("order", {}).get("member") or {}
         if not member.get("email"):
@@ -86,7 +82,6 @@ def memberful_webhook():
         append_log_entry(event_type, member["email"], "success", payload=data)
         return '', 200
 
-    # Standard extract
     member = data.get("member") or data.get("subscription", {}).get("member") or {}
     subscription = data.get("subscription") or {}
 
@@ -94,7 +89,6 @@ def memberful_webhook():
         print("⚠️ Member object missing or has no email — skipping Mailchimp sync.")
         return '', 200
 
-    # Handle normal sync events
     if event_type in [
         "member_signup", "member_updated",
         "subscription.created", "subscription.updated",
@@ -179,9 +173,35 @@ def view_logs():
         print(f"⚠️ Failed to load logs: {e}")
     return render_template("logs.html", logs=logs)
 
-@app.route('/health', methods=['GET'])
-def health_check():
-    return {"status": "ok"}, 200
+@app.route('/webhook_logs.json', methods=['GET'])
+@auth.login_required
+def serve_webhook_logs_json():
+    try:
+        logs = load_json(LOG_FILE)
+        return logs, 200
+    except Exception as e:
+        print(f"❌ Error loading logs JSON: {e}")
+        return {"error": "Could not load logs"}, 500
+
+@app.route('/email_cache.json', methods=['GET'])
+@auth.login_required
+def serve_email_cache():
+    try:
+        cache = load_cache()
+        return cache, 200
+    except Exception as e:
+        print(f"❌ Error loading email cache: {e}")
+        return {"error": "Could not load email cache"}, 500
+
+@app.route('/admin', methods=['GET'])
+@auth.login_required
+def admin_index():
+    return send_from_directory('admin-ui', 'index.html')
+
+@app.route('/admin/<path:path>', methods=['GET'])
+@auth.login_required
+def admin_static(path):
+    return send_from_directory('admin-ui', path)
 
 @app.route('/replay-log', methods=['POST'])
 @auth.login_required
@@ -200,7 +220,10 @@ def replay_log():
     ):
         return memberful_webhook()
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return {"status": "ok"}, 200
+
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get("PORT", 5050))  # Defaults to 5050 locally, uses PORT from env in prod
+    port = int(os.environ.get("PORT", 5050))
     app.run(host="0.0.0.0", port=port)
