@@ -122,12 +122,25 @@ ngrok http 5050
 The CLI test simulates a full webhook flow (signup → subscription → failure → recovery → email change):
 
 ```bash
+# 🔁 Make sure you're in the virtual environment
+source venv/bin/activate
+
+# ▶️ Run the CLI test script
 python test_workflow_verified_step.py
+```
+
+If you haven’t set up your virtual environment yet:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ---
 
-### 🛠️ Admin Panel
+
+## ✅ 5. Admin Panel
 
 The ChimpLink Admin Panel provides a lightweight browser interface for monitoring and managing webhook activity between Memberful and Mailchimp.
 
