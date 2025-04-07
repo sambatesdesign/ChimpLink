@@ -163,16 +163,6 @@ def memberful_webhook():
 
     return '', 200
 
-@app.route('/logs', methods=['GET'])
-@auth.login_required
-def view_logs():
-    logs = []
-    try:
-        logs = sorted(load_json(LOG_FILE), key=lambda x: x.get("timestamp", ""), reverse=True)
-    except Exception as e:
-        print(f"⚠️ Failed to load logs: {e}")
-    return render_template("logs.html", logs=logs)
-
 @app.route('/webhook_logs.json', methods=['GET'])
 @auth.login_required
 def serve_webhook_logs_json():
