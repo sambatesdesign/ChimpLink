@@ -163,6 +163,28 @@ def memberful_webhook():
 
     return '', 200
 
+@app.route('/gbx-member-profile-webhook', methods=['POST'])
+def gbx_member_profile_webhook():
+    try:
+        payload = request.get_json(force=True)
+        print("✅ Received GBX profile webhook payload:")
+        print(json.dumps(payload, indent=2))
+
+        # ✅ Secret verification
+        secret = payload.get("secret")
+        if secret != os.getenv("GBX_WEBHOOK_SECRET"):
+            print("❌ Invalid GBX webhook secret")
+            return "Unauthorized", 403
+
+        # ✅ Sync to Mailchimp
+        from gbx_sync import sync_gbx_profile_to_mailchimp
+        sync_gbx_profile_to_mailchimp(payload)
+
+        return '', 200
+    except Exception as e:
+        print(f"❌ Error processing GBX profile webhook: {e}")
+        return 'Error', 500
+
 @app.route('/webhook_logs.json', methods=['GET'])
 @auth.login_required
 def serve_webhook_logs_json():

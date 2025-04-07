@@ -10,3 +10,18 @@ MERGE_FIELDS = {
     "expires_at": "MMERGE10",
     "signup_date": "MMERGE12",
 }
+
+GBX_PROFILE_FIELDS = {
+    "company": "MMERGE5",
+    "job-title": "MMERGE6",
+    "country": "MMERGE14",
+    "city": "MMERGE15",
+    "education": "MMERGE16",
+    "industry": "MMERGE17",
+    "industry-sub": "MMERGE18",
+    "linkedin-url": "MMERGE19",
+    "twitter-url": "MMERGE20",
+    "funding-status": "MMERGE21",
+    "last-funding-type": "MMERGE22",
+    "total-funding": "MMERGE23"
+}
