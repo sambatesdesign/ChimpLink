@@ -331,8 +331,76 @@ async function loadDashboard() {
 }
 
 // =========================
-// 🌗 Dark Mode Toggle
+// 🧩 Merge Field Mapping
 // =========================
+
+async function loadMergeMap() {
+  const form = document.getElementById('merge-map-form');
+  const status = document.getElementById('merge-map-status');
+  form.innerHTML = '';
+  status.textContent = '';
+
+  try {
+    const res = await fetch('/api/merge-map');
+    const map = await res.json();
+
+    const renderSection = (label, obj) => {
+      const header = `<h3 class="text-sm font-semibold text-gray-700 mt-6">${label}</h3>`;
+      const rows = Object.entries(obj).map(([key, value]) => {
+        return `
+          <div class="flex items-center space-x-2">
+            <label class="w-48 font-mono text-xs text-gray-600">${key}</label>
+            <input
+              type="text"
+              class="w-full border px-2 py-1 rounded text-sm"
+              name="${label}:${key}"
+              value="${value}"
+            />
+          </div>
+        `;
+      }).join('');
+      return header + rows;
+    };
+
+    form.innerHTML =
+      renderSection('MERGE_FIELDS', map.MERGE_FIELDS) +
+      renderSection('GBX_PROFILE_FIELDS', map.GBX_PROFILE_FIELDS);
+
+  } catch (err) {
+    console.error('Error loading merge map:', err);
+    form.innerHTML = '<p class="text-red-500">Failed to load merge map config.</p>';
+  }
+}
+
+document.getElementById('save-merge-map').addEventListener('click', async () => {
+  const status = document.getElementById('merge-map-status');
+  status.textContent = 'Saving...';
+
+  const inputs = document.querySelectorAll('#merge-map-form input');
+  const updatedMap = { MERGE_FIELDS: {}, GBX_PROFILE_FIELDS: {} };
+
+  inputs.forEach(input => {
+    const [section, key] = input.name.split(':');
+    updatedMap[section][key] = input.value.trim();
+  });
+
+  try {
+    const res = await fetch('/api/merge-map', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedMap)
+    });
+
+    if (res.ok) {
+      status.textContent = '✅ Saved successfully!';
+    } else {
+      throw new Error('Failed to save');
+    }
+  } catch (err) {
+    console.error('Failed to save merge map:', err);
+    status.textContent = '❌ Save failed';
+  }
+});
 
 
 // =========================
@@ -343,6 +411,7 @@ const pageHandlers = {
   logs: loadLogs,
   cache: loadEmailCache,
   dashboard: loadDashboard,
+  'merge-map': loadMergeMap,
 };
 
 document.querySelector('[data-tab="dashboard"]').click();

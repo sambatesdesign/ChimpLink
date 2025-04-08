@@ -43,6 +43,7 @@
         <button data-tab="dashboard" class="tab-btn text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Dashboard</button>
         <button data-tab="logs" class="tab-btn text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Logs</button>
         <button data-tab="cache" class="tab-btn text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Email Cache</button>
+        <button data-tab="merge-map" class="tab-btn text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium">Merge Fields</button>
       </div>
     </div>
   </nav>
@@ -83,6 +84,20 @@
       <h2 class="text-lg font-semibold mb-2">Email Cache Viewer</h2>
       <p class="text-sm text-gray-600">This will display member_email_cache.json data.</p>
     </section>
+
+    <!-- Merge Field Mapping -->
+<section id="merge-map" class="tab-page hidden">
+  <h2 class="text-lg font-semibold mb-2">Merge Field Mapping</h2>
+  <p class="text-sm text-gray-600 mb-4">This config controls how we map Memberful and GBX fields to Mailchimp merge fields. You can update the mappings below.</p>
+  <div id="merge-map-form" class="space-y-4">
+    <!-- Dynamic field rows will be injected here -->
+  </div>
+  <button
+    id="save-merge-map"
+    class="mt-4 bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded hover:bg-blue-700"
+  >💾 Save Changes</button>
+  <p id="merge-map-status" class="text-sm mt-2"></p>
+</section>
   </main>
 
   <!-- Main JS Logic -->

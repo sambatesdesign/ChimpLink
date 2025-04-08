@@ -232,6 +232,30 @@ def replay_log():
     ):
         return memberful_webhook()
 
+from flask import jsonify
+
+@app.route('/api/merge-map', methods=['GET'])
+@auth.login_required
+def get_merge_map():
+    try:
+        from storage_utils import load_merge_map
+        return jsonify(load_merge_map())
+    except Exception as e:
+        print(f"❌ Failed to load merge map: {e}")
+        return jsonify({"error": "Failed to load merge map"}), 500
+
+@app.route('/api/merge-map', methods=['POST'])
+@auth.login_required
+def update_merge_map():
+    try:
+        data = request.get_json()
+        from storage_utils import save_merge_map
+        save_merge_map(data)
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        print(f"❌ Failed to save merge map: {e}")
+        return jsonify({"error": "Failed to save merge map"}), 500
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return {"status": "ok"}, 200
