@@ -74,15 +74,38 @@
     <!-- Logs -->
     <section id="logs" class="tab-page hidden">
       <h2 class="text-lg font-semibold mb-2">Webhook Logs</h2>
-      <div id="logs-table" class="overflow-x-auto text-sm">
-        <!-- Table gets injected -->
+
+      <div id="logs-table" class="text-sm space-y-4">
+        <!-- 🔍 Search input + Pagination controls -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <input
+            id="log-search"
+            type="text"
+            placeholder="Search by email or event..."
+            class="border border-gray-300 p-2 rounded text-sm w-full sm:w-1/2"
+          />
+          <div id="log-pagination" class="flex gap-1 text-sm text-gray-600 flex-wrap justify-end"></div>
+        </div>
+
+        <!-- 📄 Table output -->
+        <div id="log-entries" class="overflow-x-auto"></div>
       </div>
     </section>
 
     <!-- Email Cache -->
     <section id="cache" class="tab-page hidden">
       <h2 class="text-lg font-semibold mb-2">Email Cache Viewer</h2>
-      <p class="text-sm text-gray-600">This will display member_email_cache.json data.</p>
+
+      <div class="mb-4">
+        <input
+          id="cache-search"
+          type="text"
+          placeholder="Search by email or ID..."
+          class="border border-gray-300 p-2 rounded text-sm w-full sm:w-1/2"
+        />
+      </div>
+
+      <div id="cache-entries" class="overflow-x-auto text-sm"></div>
     </section>
 
     <!-- Merge Field Mapping -->
