@@ -1,6 +1,5 @@
-# merge_map.py
-
-MERGE_FIELDS = {
+{
+  "MERGE_FIELDS": {
     "first_name": "FNAME",
     "last_name": "LNAME",
     "member_id": "MMERGE13",
@@ -8,10 +7,9 @@ MERGE_FIELDS = {
     "plan_active": "MMERGE8",
     "auto_renew": "MMERGE9",
     "expires_at": "MMERGE10",
-    "signup_date": "MMERGE12",
-}
-
-GBX_PROFILE_FIELDS = {
+    "signup_date": "MMERGE12"
+  },
+  "GBX_PROFILE_FIELDS": {
     "company": "MMERGE5",
     "job-title": "MMERGE6",
     "country": "MMERGE14",
@@ -24,4 +22,5 @@ GBX_PROFILE_FIELDS = {
     "funding-status": "MMERGE21",
     "last-funding-type": "MMERGE22",
     "total-funding": "MMERGE23"
+  }
 }
