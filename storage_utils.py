@@ -15,6 +15,8 @@ DO_ENDPOINT = f"https://{DO_REGION}.digitaloceanspaces.com"
 DO_ID = os.getenv("DIGITALOCEAN_SPACE_KEY")
 DO_SECRET = os.getenv("DIGITALOCEAN_SPACE_SECRET")
 
+MERGE_MAP_FILENAME = "merge_map.json"
+
 def _get_s3_client():
     print("👀 SPACE_KEY:", DO_ID)
     print("👀 SPACE_SECRET:", "SET" if DO_SECRET else "MISSING")
@@ -60,6 +62,9 @@ def save_json(filename, data):
         except Exception as e:
             print(f"⚠️ Failed to write {filename} locally: {e}")
 
-# 🔄 New helper for loading the merge field mappings
+# 🔄 Helpers for merge mapping config
 def load_merge_map():
-    return load_json("merge_map.json")
+    return load_json(MERGE_MAP_FILENAME)
+
+def save_merge_map(data):
+    save_json(MERGE_MAP_FILENAME, data)

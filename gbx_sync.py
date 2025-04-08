@@ -5,7 +5,7 @@ import json
 import requests
 from config import MAILCHIMP_API_KEY, MAILCHIMP_LIST_ID, MAILCHIMP_SERVER_PREFIX
 from log_utils import append_log_entry
-from storage_utils import load_json
+from storage_utils import load_merge_map
 
 def sync_gbx_profile_to_mailchimp(payload):
     try:
@@ -16,8 +16,8 @@ def sync_gbx_profile_to_mailchimp(payload):
         contact_hash = hashlib.md5(email.lower().encode()).hexdigest()
         member_url = f"https://{MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/lists/{MAILCHIMP_LIST_ID}/members/{contact_hash}"
 
-        # ⬇️ Load latest GBX mapping from JSON
-        merge_map = load_json("merge_map.json")
+        # ⬇️ Load latest GBX mapping from storage
+        merge_map = load_merge_map()
         gbx_map = merge_map.get("GBX_PROFILE_FIELDS", {})
 
         merge_fields = {}

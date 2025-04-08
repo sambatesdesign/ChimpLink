@@ -1,26 +1,26 @@
 {
   "MERGE_FIELDS": {
+    "auto_renew": "MMERGE9",
+    "expires_at": "MMERGE10",
     "first_name": "FNAME",
     "last_name": "LNAME",
     "member_id": "MMERGE13",
-    "plan_name": "MMERGE7",
     "plan_active": "MMERGE8",
-    "auto_renew": "MMERGE9",
-    "expires_at": "MMERGE10",
+    "plan_name": "MMERGE7",
     "signup_date": "MMERGE12"
   },
   "GBX_PROFILE_FIELDS": {
-    "company": "MMERGE5",
-    "job-title": "MMERGE6",
-    "country": "MMERGE14",
     "city": "MMERGE15",
+    "company": "MMERGE5",
+    "country": "MMERGE14",
     "education": "MMERGE16",
+    "funding-status": "MMERGE21",
     "industry": "MMERGE17",
     "industry-sub": "MMERGE18",
-    "linkedin-url": "MMERGE19",
-    "twitter-url": "MMERGE20",
-    "funding-status": "MMERGE21",
+    "job-title": "MMERGE6",
     "last-funding-type": "MMERGE22",
-    "total-funding": "MMERGE23"
+    "linkedin-url": "MMERGE19",
+    "total-funding": "MMERGE23",
+    "twitter-url": "MMERGE20"
   }
 }

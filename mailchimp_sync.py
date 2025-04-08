@@ -3,15 +3,16 @@
 import hashlib
 import json
 import requests
-from storage_utils import load_merge_map
-merge_map = load_merge_map()
-MERGE_FIELDS = merge_map["MERGE_FIELDS"]
 from config import MAILCHIMP_API_KEY, MAILCHIMP_LIST_ID, MAILCHIMP_SERVER_PREFIX
 from utils import format_date, convert_bool, convert_autorenew
 from cache_utils import get_cached_email, update_cache
 from log_utils import append_log_entry
+from storage_utils import load_merge_map
 
 def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
+    merge_map = load_merge_map()
+    MERGE_FIELDS = merge_map["MERGE_FIELDS"]
+
     member_id = str(member.get("id"))
     current_email = member.get("email")
     original_email = get_cached_email(member_id) or current_email
