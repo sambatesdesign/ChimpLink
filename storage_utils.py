@@ -59,3 +59,7 @@ def save_json(filename, data):
                 json.dump(data, f, indent=2)
         except Exception as e:
             print(f"⚠️ Failed to write {filename} locally: {e}")
+
+# 🔄 New helper for loading the merge field mappings
+def load_merge_map():
+    return load_json("merge_map.json")

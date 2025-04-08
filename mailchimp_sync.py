@@ -3,7 +3,9 @@
 import hashlib
 import json
 import requests
-from merge_map import MERGE_FIELDS
+from storage_utils import load_merge_map
+merge_map = load_merge_map()
+MERGE_FIELDS = merge_map["MERGE_FIELDS"]
 from config import MAILCHIMP_API_KEY, MAILCHIMP_LIST_ID, MAILCHIMP_SERVER_PREFIX
 from utils import format_date, convert_bool, convert_autorenew
 from cache_utils import get_cached_email, update_cache
