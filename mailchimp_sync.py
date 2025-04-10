@@ -49,8 +49,8 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
         contact_hash = hashlib.md5(original_email.lower().encode()).hexdigest()
         member_url = f"https://{MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/lists/{MAILCHIMP_LIST_ID}/members/{contact_hash}"
 
-        # 1️⃣ Sync basic profile and merge fields
         response = requests.put(member_url, auth=("anystring", MAILCHIMP_API_KEY), json=payload)
+
         if response.status_code in [200, 201]:
             print(f"✅ Synced {original_email}: {response.status_code}")
             update_cache(member_id, current_email)
@@ -59,10 +59,15 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
             print(f"❌ Failed to sync {original_email}: {response.status_code}")
             print("Mailchimp error response:")
             print(response.text)
-            append_log_entry(event_type, current_email, "error")
+            append_log_entry(
+                event_type,
+                current_email,
+                "error",
+                diff={"mailchimp_status": response.status_code, "mailchimp_error": response.text}
+            )
             return
 
-        # 2️⃣ Apply or remove "Payment Failed" tag
+        # Tags (optional)
         tag_url = f"{member_url}/tags"
         tag_payload = {
             "tags": [
@@ -80,4 +85,4 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
 
     except Exception as e:
         print(f"❌ Exception during Mailchimp sync: {e}")
-        append_log_entry(event_type, current_email, "exception")
+        append_log_entry(event_type, current_email, "exception", diff={"error": str(e)})

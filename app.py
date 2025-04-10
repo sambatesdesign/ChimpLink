@@ -1,54 +1,87 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask_httpauth import HTTPBasicAuth
-from werkzeug.security import check_password_hash
+from forms import LoginForm
 import os
+import hmac
+import hashlib
+import json
+from datetime import datetime, timedelta
+from flask import (
+    Flask, request, render_template, redirect, url_for,
+    session, abort, send_from_directory, jsonify
+)
+from werkzeug.security import check_password_hash
+from functools import wraps
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
-auth = HTTPBasicAuth()
+# 🔐 App setup
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET")
+if not app.secret_key:
+    raise RuntimeError("❌ FLASK_SECRET is missing from environment variables. Set it in your .env file.")
+app.permanent_session_lifetime = timedelta(minutes=30)
 
+# 🔐 Rate limiting (CSRF removed)
+limiter = Limiter(get_remote_address, app=app)
+
+# 📁 Globals
+LOG_FILE = "webhook_logs.json"
 LOGS_USER = os.getenv("LOGS_USER")
 LOGS_PASSWORD_HASH = os.getenv("LOGS_PASSWORD_HASH")
 
-@auth.verify_password
-def verify_password(username, password):
-    if username == LOGS_USER and check_password_hash(LOGS_PASSWORD_HASH, password):
-        return username
-
-from flask import Flask, request, render_template, abort, send_from_directory
-import json
-from datetime import datetime
-import hmac
-import hashlib
-from storage_utils import load_json
-from config import MEMBERFUL_WEBHOOK_SECRET
-from mailchimp_sync import sync_to_mailchimp
+# ✅ Utility Imports
+from storage_utils import load_json, load_merge_map, save_merge_map
 from cache_utils import load_cache, save_cache, get_cached_email
 from log_utils import append_log_entry
+from mailchimp_sync import sync_to_mailchimp
+from config import MEMBERFUL_WEBHOOK_SECRET
 
-app = Flask(__name__)
-LOG_FILE = "webhook_logs.json"
+# ✅ Custom login_required decorator
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
 
-def verify_signature(request):
-    signature = request.headers.get("X-Memberful-Webhook-Signature")
+# ✅ Login/logout
+@app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute")
+def login():
+    form = LoginForm()
+    error = None
 
-    if signature == "REPLAY":
-        return True
+    if form.validate_on_submit():
+        username = form.username.data
+        password = form.password.data
 
-    if not signature:
-        print("❌ Missing signature header")
-        return False
+        if username == LOGS_USER and check_password_hash(LOGS_PASSWORD_HASH, password):
+            session["logged_in"] = True
+            return redirect(url_for("admin_index"))
+        else:
+            error = "Invalid username or password"
+            append_log_entry(
+                event="login_failed",
+                email=username or "unknown",
+                status="failed",
+                payload={
+                    "ip": request.remote_addr,
+                    "user_agent": request.headers.get("User-Agent"),
+                    "error": error
+                }
+            )
 
-    secret = MEMBERFUL_WEBHOOK_SECRET.encode()
-    payload = request.get_data()
-    computed = hmac.new(secret, payload, hashlib.sha256).hexdigest()
+    return render_template("login.html", form=form, error=error)
 
-    if not hmac.compare_digest(computed, signature):
-        print("❌ Webhook signature does not match!")
-        return False
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
-    return True
-
+# ✅ Jinja filter
 @app.template_filter('datetimeformat')
 def datetimeformat(value, mode='full'):
     try:
@@ -61,6 +94,23 @@ def datetimeformat(value, mode='full'):
     except Exception:
         return value
 
+# ✅ Signature verification
+def verify_signature(request):
+    signature = request.headers.get("X-Memberful-Webhook-Signature")
+    if signature == "REPLAY":
+        return True
+    if not signature:
+        print("❌ Missing signature header")
+        return False
+    secret = MEMBERFUL_WEBHOOK_SECRET.encode()
+    payload = request.get_data()
+    computed = hmac.new(secret, payload, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(computed, signature):
+        print("❌ Webhook signature does not match!")
+        return False
+    return True
+
+# ✅ Memberful Webhook
 @app.route('/memberful-webhook', methods=['POST'])
 def memberful_webhook():
     if not verify_signature(request):
@@ -68,7 +118,6 @@ def memberful_webhook():
 
     data = request.json
     event_type = data.get("event")
-
     print(f"Received webhook: {event_type}")
     print("Raw webhook payload:")
     print(data)
@@ -86,7 +135,7 @@ def memberful_webhook():
     subscription = data.get("subscription") or {}
 
     if not member.get("email") and event_type != "member.deleted":
-        print("⚠️ Member object missing or has no email — skipping Mailchimp sync.")
+        print("⚠️ No email — skipping sync.")
         return '', 200
 
     if event_type in [
@@ -103,7 +152,7 @@ def memberful_webhook():
             cached_email = get_cached_email(member_id)
             changes = data.get("changed", {})
             if cached_email and cached_email != current_email:
-                print(f"✳️ Email changed in Memberful: {cached_email} → {current_email}")
+                print(f"✳️ Email changed: {cached_email} → {current_email}")
             append_log_entry(event_type, current_email, "success", diff=changes, payload=data)
         else:
             append_log_entry(event_type, member.get("email"), "success", payload=data)
@@ -120,9 +169,7 @@ def memberful_webhook():
 
     elif event_type == "subscription.deleted":
         member["email"] = member.get("email") or get_cached_email(member.get("id"))
-        if not member["email"]:
-            print("⚠️ No email found for deleted subscription")
-        else:
+        if member["email"]:
             subscription_stub = {
                 "active": False,
                 "plan_name": "",
@@ -131,6 +178,8 @@ def memberful_webhook():
             }
             sync_to_mailchimp(member, subscription_stub, event_type)
             append_log_entry(event_type, member["email"], "success", payload=data)
+        else:
+            print("⚠️ No email found for deleted subscription")
 
     elif event_type == "member.deleted":
         member_id = member.get("id")
@@ -152,17 +201,15 @@ def memberful_webhook():
                 }
                 sync_to_mailchimp(member_stub, subscription_stub, event_type, override_guid=True)
                 append_log_entry(event_type, cached_email, "success", payload=data)
-
                 cache = load_cache()
                 cache.pop(str(member_id), None)
                 save_cache(cache)
             else:
-                print(f"⚠️ No cached email found for deleted member ID {member_id}")
-        else:
-            print("⚠️ No member ID in deleted webhook")
+                print(f"⚠️ No cached email for deleted member ID {member_id}")
 
     return '', 200
 
+# ✅ GBX Webhook
 @app.route('/gbx-member-profile-webhook', methods=['POST'])
 def gbx_member_profile_webhook():
     try:
@@ -170,93 +217,99 @@ def gbx_member_profile_webhook():
         print("✅ Received GBX profile webhook payload:")
         print(json.dumps(payload, indent=2))
 
-        # ✅ Secret verification
-        secret = payload.get("secret")
-        if secret != os.getenv("GBX_WEBHOOK_SECRET"):
+        if payload.get("secret") != os.getenv("GBX_WEBHOOK_SECRET"):
             print("❌ Invalid GBX webhook secret")
             return "Unauthorized", 403
 
-        # ✅ Sync to Mailchimp
         from gbx_sync import sync_gbx_profile_to_mailchimp
         sync_gbx_profile_to_mailchimp(payload)
-
         return '', 200
     except Exception as e:
         print(f"❌ Error processing GBX profile webhook: {e}")
         return 'Error', 500
 
-@app.route('/webhook_logs.json', methods=['GET'])
-@auth.login_required
+# ✅ Admin + API Routes
+@app.route('/admin')
+@login_required
+def admin_index():
+    return send_from_directory('admin-ui', 'index.html')
+
+@app.route('/admin/<path:path>')
+def admin_static(path):
+    # allow public access to certain static assets
+    if path in ['logo.png', 'logo-large.png', 'banana-bg.png', 'favicon.ico', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png']:
+        return send_from_directory('admin-ui', path)
+
+    # everything else still requires login
+    if not session.get("logged_in"):
+        return redirect(url_for("login"))
+
+    return send_from_directory('admin-ui', path)
+
+@app.route('/webhook_logs.json')
+@login_required
 def serve_webhook_logs_json():
     try:
-        logs = load_json(LOG_FILE)
-        return logs, 200
+        return load_json(LOG_FILE), 200
     except Exception as e:
         print(f"❌ Error loading logs JSON: {e}")
         return {"error": "Could not load logs"}, 500
 
-@app.route('/email_cache.json', methods=['GET'])
-@auth.login_required
+@app.route('/email_cache.json')
+@login_required
 def serve_email_cache():
     try:
-        cache = load_cache()
-        return cache, 200
+        return load_cache(), 200
     except Exception as e:
         print(f"❌ Error loading email cache: {e}")
         return {"error": "Could not load email cache"}, 500
 
-@app.route('/admin', methods=['GET'])
-@auth.login_required
-def admin_index():
-    return send_from_directory('admin-ui', 'index.html')
-
-@app.route('/admin/<path:path>', methods=['GET'])
-@auth.login_required
-def admin_static(path):
-    return send_from_directory('admin-ui', path)
-
 @app.route('/replay-log', methods=['POST'])
-@auth.login_required
+@login_required
 def replay_log():
-    data = request.get_json()
-    if not data or "event" not in data:
-        return "Missing payload or event", 400
+    try:
+        data = request.get_json()
+        print("📥 Incoming replay payload:", data)
 
-    print(f"🔁 Replaying event: {data['event']}")
+        if not data or "event" not in data:
+            print("⚠️ Missing event or invalid data:", request.data)
+            return "Missing payload or event", 400
 
-    with app.test_request_context(
-        '/memberful-webhook',
-        method='POST',
-        json=data,
-        headers={"X-Memberful-Webhook-Signature": "REPLAY"}
-    ):
-        return memberful_webhook()
+        print(f"🔁 Replaying event: {data['event']}")
 
-from flask import jsonify
+        with app.test_request_context(
+            '/memberful-webhook',
+            method='POST',
+            json=data,
+            headers={"X-Memberful-Webhook-Signature": "REPLAY"}
+        ):
+            return memberful_webhook()
+
+    except Exception as e:
+        print("❌ Replay handler failed:", e)
+        return "Server error", 500
 
 @app.route('/api/merge-map', methods=['GET'])
-@auth.login_required
+@login_required
 def get_merge_map():
     try:
-        from storage_utils import load_merge_map
         return jsonify(load_merge_map())
     except Exception as e:
         print(f"❌ Failed to load merge map: {e}")
         return jsonify({"error": "Failed to load merge map"}), 500
 
 @app.route('/api/merge-map', methods=['POST'])
-@auth.login_required
+@login_required
 def update_merge_map():
     try:
         data = request.get_json()
-        from storage_utils import save_merge_map
         save_merge_map(data)
         return jsonify({"status": "ok"})
     except Exception as e:
         print(f"❌ Failed to save merge map: {e}")
         return jsonify({"error": "Failed to save merge map"}), 500
 
-@app.route('/health', methods=['GET'])
+@app.route('/health')
 def health_check():
     return {"status": "ok"}, 200
 
