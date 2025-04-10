@@ -28,7 +28,7 @@ tabButtons.forEach(btn => {
 // 📄 Logs Page
 // =========================
 
-let logsData = []; // stores all logs after fetch
+let logsData = [];
 let currentPage = 1;
 const logsPerPage = 10;
 
@@ -45,10 +45,8 @@ async function loadLogs() {
       return;
     }
 
-    // Sort newest first
     logsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    // Render search input and log table container
     container.innerHTML = `
       <div class="mb-4">
         <input
@@ -61,7 +59,6 @@ async function loadLogs() {
       <div id="log-entries" class="overflow-x-auto"></div>
     `;
 
-    // Add search listener
     document.getElementById('log-search').addEventListener('input', () => {
       currentPage = 1;
       renderLogs();
@@ -94,10 +91,16 @@ function renderLogs() {
     const time = timestamp.toLocaleTimeString();
     const statusClass = log.status === 'success' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold';
 
-    const changes = log.changes ? `
+    const mailchimpError = log.changes?.mailchimp_error ? `
+      <details class="bg-red-50 border border-red-200 rounded p-2 mt-1">
+        <summary class="cursor-pointer font-medium text-sm text-red-700">Mailchimp Error</summary>
+        <pre class="mt-1 overflow-x-auto text-xs text-red-700 whitespace-pre-wrap">${log.changes.mailchimp_error}</pre>
+      </details>` : '';
+
+    const changes = log.changes && Object.keys(log.changes).some(k => k !== "mailchimp_error") ? `
       <details class="bg-gray-50 p-2 border rounded mt-1">
         <summary class="cursor-pointer font-medium text-sm text-gray-700">Changes</summary>
-        <pre class="mt-1 overflow-x-auto text-xs">${JSON.stringify(log.changes, null, 2)}</pre>
+        <pre class="mt-1 overflow-x-auto text-xs">${JSON.stringify({ ...log.changes, mailchimp_error: undefined }, null, 2)}</pre>
       </details>` : '';
 
     const payload = log.payload ? `
@@ -119,18 +122,16 @@ function renderLogs() {
         <td class="p-2">${log.event}</td>
         <td class="p-2">${log.email || ''}</td>
         <td class="p-2 ${statusClass}">${log.status}</td>
-        <td class="p-2 space-y-2">${changes}${payload}</td>
+        <td class="p-2 space-y-2">${mailchimpError}${changes}${payload}</td>
       </tr>`;
   }).join('');
 
-  // Build pagination controls
   const paginationUI = Array.from({ length: totalPages }, (_, i) => {
     const page = i + 1;
     return `<button class="px-2 py-1 rounded ${page === currentPage ? 'bg-blue-500 text-white' : 'hover:underline'}"
                     onclick="gotoLogPage(${page})">${page}</button>`;
   }).join('');
 
-  // Inject table + pagination summary
   entriesContainer.innerHTML = `
     <table class="w-full text-left bg-white shadow-sm rounded-lg overflow-hidden text-sm">
       <thead class="bg-gray-100 text-gray-600">
@@ -184,7 +185,8 @@ async function replayPayload(button) {
       body: JSON.stringify(payload)
     });
 
-    statusElem.textContent = res.ok ? '✅ Replayed' : `❌ Error (${res.status})`;
+    const status = res.ok ? '✅ Replayed' : `❌ Error (${res.status})`;
+    statusElem.textContent = status;
   } catch (err) {
     console.error('Replay error:', err);
     statusElem.textContent = '❌ Failed';
