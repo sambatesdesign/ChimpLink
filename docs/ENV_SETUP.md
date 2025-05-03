@@ -18,8 +18,10 @@ This project uses a `.env` file to manage environment variables both locally and
 | `DIGITALOCEAN_SPACE_REGION`| e.g., `nyc3`                             |
 | `DIGITALOCEAN_SPACE_BUCKET`| e.g., `keepabl-com`                      |
 | `DIGITALOCEAN_SPACE_FOLDER`| e.g., `webhook_logs`                     |
+| `STRIPE_WEBHOOK_SECRET_LOCAL` | Stripe webhook secret used in local dev (`stripe listen`) |
+| `STRIPE_WEBHOOK_SECRET_PROD`  | Stripe webhook secret used in production dashboard         |
+| `STRIPE_API_KEY`              | Secret API key for Stripe requests                         |
 
 ## 🧪 Local Development
 
 Set `APP_ENV=local` and all variables in a `.env` file at the root of the project. Use `python-dotenv` to load them automatically.
-

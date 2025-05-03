@@ -31,6 +31,10 @@ LOG_FILE = "webhook_logs.json"
 LOGS_USER = os.getenv("LOGS_USER")
 LOGS_PASSWORD_HASH = os.getenv("LOGS_PASSWORD_HASH")
 
+import stripe
+app_env = os.getenv("APP_ENV", "local")
+stripe.api_key = os.getenv("STRIPE_API_KEY_LIVE") if app_env == "production" else os.getenv("STRIPE_API_KEY_TEST")
+
 # ✅ Utility Imports
 from storage_utils import load_json, load_merge_map, save_merge_map
 from cache_utils import load_cache, save_cache, get_cached_email
@@ -122,14 +126,15 @@ def memberful_webhook():
     print("Raw webhook payload:")
     print(data)
 
-    if event_type == "order.failed":
-        member = data.get("order", {}).get("member") or {}
-        if not member.get("email"):
-            print("⚠️ No email in order.failed event")
-            return '', 200
-        sync_to_mailchimp(member, None, event_type)
-        append_log_entry(event_type, member["email"], "success", payload=data)
-        return '', 200
+    # if event_type == "order.failed":
+    #     # 🟡 Deprecated: 'order.failed' events are now handled via Stripe webhook
+    #     member = data.get("order", {}).get("member") or {}
+    #     if not member.get("email"):
+    #         print("⚠️ No email in order.failed event")
+    #         return '', 200
+    #     sync_to_mailchimp(member, None, event_type)
+    #     append_log_entry(event_type, member["email"], "success", payload=data)
+    #     return '', 200
 
     member = data.get("member") or data.get("subscription", {}).get("member") or {}
     subscription = data.get("subscription") or {}
@@ -227,6 +232,68 @@ def gbx_member_profile_webhook():
     except Exception as e:
         print(f"❌ Error processing GBX profile webhook: {e}")
         return 'Error', 500
+
+# ✅ Stripe Webhook - For payment info
+@app.route('/stripe-webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+
+    # Pick correct secret based on environment
+    app_env = os.getenv('APP_ENV', 'local')
+    if app_env == 'production':
+        webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET_PROD')
+        stripe.api_key = os.getenv("STRIPE_API_KEY_PROD")
+    else:
+        webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET_LOCAL')
+        stripe.api_key = os.getenv("STRIPE_API_KEY_TEST")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except stripe.error.SignatureVerificationError:
+        print("❌ Invalid Stripe signature")
+        return "Invalid signature", 400
+    except Exception as e:
+        print(f"❌ Error verifying webhook: {e}")
+        return "Webhook error", 400
+
+    print(f"⚡ Received Stripe event: {event['type']}")
+
+    if event['type'] in ['invoice.payment_failed', 'invoice.payment_succeeded', 'invoice.paid']:
+        customer_id = event['data']['object']['customer']
+        print(f"🔍 Fetching Stripe customer: {customer_id}")
+
+        try:
+            customer = stripe.Customer.retrieve(customer_id)
+            email = customer.get("email")
+            print(f"📧 Email from Stripe: {email}")
+
+            if not email:
+                print("⚠️ Stripe customer has no email — skipping Mailchimp sync")
+                return '', 200
+
+            # Construct minimal member-like object
+            member_stub = {
+                "email": email,
+                "id": "",
+                "first_name": customer.get("name", "").split(" ")[0],
+                "last_name": " ".join(customer.get("name", "").split(" ")[1:]),
+                "created_at": customer.get("created", "")
+            }
+
+            from mailchimp_sync import sync_to_mailchimp
+            sync_to_mailchimp(member_stub, None, event['type'], tag_only=True)
+
+            from log_utils import append_log_entry
+            append_log_entry(event['type'], email, "success", payload=event)
+
+        except Exception as e:
+            print(f"❌ Failed to sync payment event to Mailchimp: {e}")
+            from log_utils import append_log_entry
+            append_log_entry(event['type'], email or "unknown", "error", diff={"error": str(e)}, payload=event)
+            return "Error", 500
+
+    return '', 200
 
 # ✅ Admin + API Routes
 @app.route('/admin')

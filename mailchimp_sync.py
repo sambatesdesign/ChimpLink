@@ -9,7 +9,7 @@ from cache_utils import get_cached_email, update_cache
 from log_utils import append_log_entry
 from storage_utils import load_merge_map
 
-def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
+def sync_to_mailchimp(member, subscription, event_type, override_guid=False, tag_only=False):
     merge_map = load_merge_map()
     MERGE_FIELDS = merge_map["MERGE_FIELDS"]
 
@@ -36,36 +36,40 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
             MERGE_FIELDS["expires_at"]: format_date(subscription.get("expires_at")),
         })
 
-    payload = {
-        "email_address": current_email,
-        "status_if_new": "subscribed",
-        "merge_fields": merge_fields
-    }
-
-    print("Payload being sent to Mailchimp:")
-    print(json.dumps(payload, indent=2))
+    contact_hash = hashlib.md5(original_email.lower().encode()).hexdigest()
+    member_url = f"https://{MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/lists/{MAILCHIMP_LIST_ID}/members/{contact_hash}"
 
     try:
-        contact_hash = hashlib.md5(original_email.lower().encode()).hexdigest()
-        member_url = f"https://{MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0/lists/{MAILCHIMP_LIST_ID}/members/{contact_hash}"
+        if not tag_only:
+            payload = {
+                "email_address": current_email,
+                "status_if_new": "subscribed",
+                "merge_fields": merge_fields
+            }
 
-        response = requests.put(member_url, auth=("anystring", MAILCHIMP_API_KEY), json=payload)
+            print("Payload being sent to Mailchimp:")
+            print(json.dumps(payload, indent=2))
 
-        if response.status_code in [200, 201]:
-            print(f"✅ Synced {original_email}: {response.status_code}")
-            update_cache(member_id, current_email)
-            append_log_entry(event_type, current_email, "success")
-        else:
-            print(f"❌ Failed to sync {original_email}: {response.status_code}")
-            print("Mailchimp error response:")
-            print(response.text)
-            append_log_entry(
-                event_type,
-                current_email,
-                "error",
-                diff={"mailchimp_status": response.status_code, "mailchimp_error": response.text}
-            )
-            return
+            response = requests.put(member_url, auth=("anystring", MAILCHIMP_API_KEY), json=payload)
+
+            if response.status_code in [200, 201]:
+                print(f"✅ Synced {original_email}: {response.status_code}")
+
+                if member_id not in [None, "", "None"] and not event_type.startswith("invoice."):
+                    update_cache(member_id, current_email)
+
+                append_log_entry(event_type, current_email, "success")
+            else:
+                print(f"❌ Failed to sync {original_email}: {response.status_code}")
+                print("Mailchimp error response:")
+                print(response.text)
+                append_log_entry(
+                    event_type,
+                    current_email,
+                    "error",
+                    diff={"mailchimp_status": response.status_code, "mailchimp_error": response.text}
+                )
+                return
 
         # Tags (optional)
         tag_url = f"{member_url}/tags"
@@ -73,7 +77,7 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False):
             "tags": [
                 {
                     "name": "Payment Failed",
-                    "status": "active" if event_type == "order.failed" else "inactive"
+                    "status": "active" if event_type in ["order.failed", "invoice.payment_failed"] else "inactive"
                 }
             ]
         }
