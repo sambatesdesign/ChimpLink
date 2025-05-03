@@ -284,6 +284,7 @@ def stripe_webhook():
 
         print(f"🔍 Fetching Stripe customer: {customer_id}")
 
+        email = "unknown"  # Ensure it's defined even if retrieval fails
         try:
             customer = stripe.Customer.retrieve(customer_id)
             email = customer.get("email")
@@ -311,7 +312,7 @@ def stripe_webhook():
         except Exception as e:
             print(f"❌ Failed to sync payment event to Mailchimp: {e}")
             from log_utils import append_log_entry
-            append_log_entry(event_type, email or "unknown", "error", diff={"error": str(e)}, payload=event)
+            append_log_entry(event_type, email, "error", diff={"error": str(e)}, payload=event)
             return "Error", 500
 
     else:
