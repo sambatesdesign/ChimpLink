@@ -71,21 +71,36 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False, tag
                 )
                 return
 
-        # Tags (optional)
-        tag_url = f"{member_url}/tags"
-        tag_payload = {
-            "tags": [
-                {
-                    "name": "Payment Failed",
-                    "status": "active" if event_type in ["order.failed", "invoice.payment_failed"] else "inactive"
-                }
-            ]
+        # 🔖 Tag update logic
+        ADD_TAG_EVENTS = {
+            "order.failed",
+            "invoice.payment_failed",
+            "charge.failed",
+            "payment_intent.payment_failed"
         }
 
-        tag_response = requests.post(tag_url, auth=("anystring", MAILCHIMP_API_KEY), json=tag_payload)
-        if tag_response.status_code not in [200, 204]:
-            print(f"⚠️ Failed to update tags: {tag_response.status_code}")
-            print(tag_response.text)
+        REMOVE_TAG_EVENTS = {
+            "invoice.paid",
+            "invoice.payment_succeeded",
+            "charge.succeeded",
+            "payment_intent.succeeded"
+        }
+
+        if event_type in ADD_TAG_EVENTS.union(REMOVE_TAG_EVENTS):
+            tag_url = f"{member_url}/tags"
+            tag_payload = {
+                "tags": [
+                    {
+                        "name": "Payment Failed",
+                        "status": "active" if event_type in ADD_TAG_EVENTS else "inactive"
+                    }
+                ]
+            }
+
+            tag_response = requests.post(tag_url, auth=("anystring", MAILCHIMP_API_KEY), json=tag_payload)
+            if tag_response.status_code not in [200, 204]:
+                print(f"⚠️ Failed to update tags: {tag_response.status_code}")
+                print(tag_response.text)
 
     except Exception as e:
         print(f"❌ Exception during Mailchimp sync: {e}")

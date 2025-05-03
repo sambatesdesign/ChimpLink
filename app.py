@@ -257,10 +257,31 @@ def stripe_webhook():
         print(f"❌ Error verifying webhook: {e}")
         return "Webhook error", 400
 
-    print(f"⚡ Received Stripe event: {event['type']}")
+    event_type = event['type']
+    print(f"⚡ Received Stripe event: {event_type}")
 
-    if event['type'] in ['invoice.payment_failed', 'invoice.payment_succeeded', 'invoice.paid']:
-        customer_id = event['data']['object']['customer']
+    # Supported tag-relevant events
+    ADD_TAG_EVENTS = {
+        'invoice.payment_failed',
+        'charge.failed',
+        'payment_intent.payment_failed'
+    }
+
+    REMOVE_TAG_EVENTS = {
+        'invoice.payment_succeeded',
+        'invoice.paid',
+        'charge.succeeded',
+        'payment_intent.succeeded'
+    }
+
+    if event_type in ADD_TAG_EVENTS.union(REMOVE_TAG_EVENTS):
+        obj = event['data']['object']
+        customer_id = obj.get('customer')
+
+        if not customer_id:
+            print("⚠️ No customer ID in event — skipping")
+            return '', 200
+
         print(f"🔍 Fetching Stripe customer: {customer_id}")
 
         try:
@@ -282,16 +303,19 @@ def stripe_webhook():
             }
 
             from mailchimp_sync import sync_to_mailchimp
-            sync_to_mailchimp(member_stub, None, event['type'], tag_only=True)
+            sync_to_mailchimp(member_stub, None, event_type, tag_only=True)
 
             from log_utils import append_log_entry
-            append_log_entry(event['type'], email, "success", payload=event)
+            append_log_entry(event_type, email, "success", payload=event)
 
         except Exception as e:
             print(f"❌ Failed to sync payment event to Mailchimp: {e}")
             from log_utils import append_log_entry
-            append_log_entry(event['type'], email or "unknown", "error", diff={"error": str(e)}, payload=event)
+            append_log_entry(event_type, email or "unknown", "error", diff={"error": str(e)}, payload=event)
             return "Error", 500
+
+    else:
+        print(f"ℹ️ Received unsupported event: {event_type} — no action taken")
 
     return '', 200
 
