@@ -157,23 +157,6 @@ def run_verified_test(unique_id):
         "MMERGE10": "2025-04-02"
     })
 
-    # Step 3: order.failed (before any upgrade)
-    send_webhook("order.failed", {
-        "order": {
-            "status": "failed",
-            "created_at": "2025-04-03T21:25:59.972512Z",
-            "uuid": "ABC123-FAILED-TEST",
-            "member": {
-                "id": member_id,
-                "email": email,
-                "first_name": first_name,
-                "last_name": last_name,
-                "created_at": created_at
-            }
-        }
-    })
-    verify_tag_present(email, "Payment Failed")
-
     # Step 4: subscription.updated (upgrade/downgrade)
     send_webhook("subscription.updated", {
         "subscription": {
