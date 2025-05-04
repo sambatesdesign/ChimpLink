@@ -282,9 +282,20 @@ def stripe_webhook():
             print("⚠️ No customer ID in event — skipping")
             return '', 200
 
-        print(f"🔍 Fetching Stripe customer: {customer_id}")
+        # 🔍 Check for member_id in metadata
+        metadata = obj.get("metadata", {})
+        if event_type.startswith("payment_intent.") and "charges" in obj:
+            charges = obj.get("charges", {}).get("data", [])
+            if charges and isinstance(charges, list):
+                metadata = charges[0].get("metadata", {})
 
-        email = "unknown"  # Ensure it's defined even if retrieval fails
+        if "member_id" not in metadata:
+            print(f"⚠️ Skipping {event_type} — no member_id in metadata")
+            return '', 200
+
+        print(f"🔍 Fetching Stripe customer: {customer_id}")
+        email = "unknown"  # Ensure it's defined for logging
+
         try:
             customer = stripe.Customer.retrieve(customer_id)
             email = customer.get("email")
