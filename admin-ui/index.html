@@ -82,12 +82,19 @@
       <div id="logs-table" class="text-sm space-y-4">
         <!-- 🔍 Search input + Pagination controls -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <input
-            id="log-search"
-            type="text"
-            placeholder="Search by email or event..."
-            class="border border-gray-300 p-2 rounded text-sm w-full sm:w-1/2"
-          />
+          <div class="flex gap-2 w-full sm:w-2/3">
+            <input
+              id="log-search"
+              type="text"
+              placeholder="Search by email or event..."
+              class="border border-gray-300 p-2 rounded text-sm w-full"
+            />
+            <select id="status-filter" class="border border-gray-300 p-2 rounded text-sm">
+              <option value="">All</option>
+              <option value="success">Success</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
           <div id="log-pagination" class="flex gap-1 text-sm text-gray-600 flex-wrap justify-end"></div>
         </div>
 

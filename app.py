@@ -305,12 +305,18 @@ def stripe_webhook():
                 print("⚠️ Stripe customer has no email — skipping Mailchimp sync")
                 return '', 200
 
+            # ✅ Safe name splitting
+            customer_name = customer.get("name") or ""
+            name_parts = customer_name.strip().split(" ", 1)
+            first_name = name_parts[0] if len(name_parts) > 0 else ""
+            last_name = name_parts[1] if len(name_parts) > 1 else ""
+
             # Construct minimal member-like object
             member_stub = {
                 "email": email,
                 "id": "",
-                "first_name": customer.get("name", "").split(" ")[0],
-                "last_name": " ".join(customer.get("name", "").split(" ")[1:]),
+                "first_name": first_name,
+                "last_name": last_name,
                 "created_at": customer.get("created", "")
             }
 
