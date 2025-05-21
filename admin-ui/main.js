@@ -48,18 +48,28 @@ async function loadLogs() {
     logsData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     container.innerHTML = `
-      <div class="mb-4">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
         <input
           id="log-search"
           type="text"
           placeholder="Search by email or event..."
           class="border border-gray-300 p-2 rounded text-sm w-full sm:w-1/2"
         />
+        <select id="status-filter" class="border border-gray-300 p-2 rounded text-sm">
+          <option value="">All Statuses</option>
+          <option value="success">Success</option>
+          <option value="error">Error</option>
+        </select>
       </div>
       <div id="log-entries" class="overflow-x-auto"></div>
     `;
 
     document.getElementById('log-search').addEventListener('input', () => {
+      currentPage = 1;
+      renderLogs();
+    });
+
+    document.getElementById('status-filter').addEventListener('change', () => {
       currentPage = 1;
       renderLogs();
     });
@@ -74,12 +84,16 @@ async function loadLogs() {
 
 function renderLogs() {
   const query = document.getElementById('log-search').value.toLowerCase();
+  const selectedStatus = document.getElementById('status-filter').value;
   const entriesContainer = document.getElementById('log-entries');
 
-  const filtered = logsData.filter(log =>
-    log.email?.toLowerCase().includes(query) ||
-    log.event?.toLowerCase().includes(query)
-  );
+  const filtered = logsData.filter(log => {
+    const matchesSearch =
+      log.email?.toLowerCase().includes(query) ||
+      log.event?.toLowerCase().includes(query);
+    const matchesStatus = selectedStatus ? log.status === selectedStatus : true;
+    return matchesSearch && matchesStatus;
+  });
 
   const totalPages = Math.ceil(filtered.length / logsPerPage);
   const start = (currentPage - 1) * logsPerPage;
@@ -156,6 +170,11 @@ function renderLogs() {
       </div>
     </div>
   `;
+}
+
+function gotoLogPage(page) {
+  currentPage = page;
+  renderLogs();
 }
 
 function gotoLogPage(page) {
