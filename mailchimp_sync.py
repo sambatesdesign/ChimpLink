@@ -28,6 +28,13 @@ def sync_to_mailchimp(member, subscription, event_type, override_guid=False, tag
         MERGE_FIELDS["signup_date"]: format_date(member.get("created_at")),
     }
 
+    # 🆕 Dynamically add any additional mapped fields from member
+    for source_key, merge_tag in MERGE_FIELDS.items():
+        if merge_tag in merge_fields:
+            continue  # Already added above
+        if source_key in member:
+            merge_fields[merge_tag] = member[source_key]
+
     if subscription:
         merge_fields.update({
             MERGE_FIELDS["plan_name"]: subscription.get("plan_name") or subscription.get("subscription_plan", {}).get("name", ""),

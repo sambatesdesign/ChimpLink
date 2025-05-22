@@ -149,6 +149,10 @@ def memberful_webhook():
         "subscription.renewed", "subscription.activated",
         "subscription.expired"
     ]:
+        # 🆕 Add lead_stage for new subscriptions
+        if event_type == "subscription.created":
+            member["lead_stage"] = "Converted"
+
         sync_to_mailchimp(member, subscription, event_type)
 
         if event_type == "member_updated":
