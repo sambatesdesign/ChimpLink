@@ -13,8 +13,8 @@ from config import (
     MEMBERFUL_WEBHOOK_SECRET,
 )
 
-WEBHOOK_URL = 'https://chimplink.gbxglobal.org/memberful-webhook'
-#WEBHOOK_URL = 'http://localhost:5050/memberful-webhook'
+#WEBHOOK_URL = 'https://chimplink.gbxglobal.org/memberful-webhook'
+WEBHOOK_URL = 'http://localhost:5050/memberful-webhook'
 MAILCHIMP_BASE = f'https://{MAILCHIMP_SERVER_PREFIX}.api.mailchimp.com/3.0'
 HEADERS = {"Authorization": f"apikey {MAILCHIMP_API_KEY}"}
 

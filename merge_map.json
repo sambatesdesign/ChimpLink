@@ -7,7 +7,8 @@
     "member_id": "MMERGE13",
     "plan_active": "MMERGE8",
     "plan_name": "MMERGE7",
-    "signup_date": "MMERGE12"
+    "signup_date": "MMERGE12",
+    "lead_stage": "MMERGE31"
   },
   "GBX_PROFILE_FIELDS": {
     "city": "MMERGE15",
